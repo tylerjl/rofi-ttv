@@ -15,12 +15,15 @@ TOKEN_FILE="${ROFI_TTV_DIR}/access_token"
 TOKEN_EXPIRY_FILE="${ROFI_TTV_DIR}/access_token_expiry"
 REFRESH_TOKEN_FILE="${ROFI_TTV_DIR}/refresh_token"
 
+CLIENT_ID_FILE="${ROFI_TTV_DIR}/client_id"
+CLIENT_SECRET_FILE="${ROFI_TTV_DIR}/client_secret"
+
 # Please don't use and/or abuse this client-id/secret-id, don't be the reason we
 # can't have nice things.
 # If you really want a twitch client-id/secret-id just go make your own
 # here: https://dev.twitch.tv/console/apps/create
-CLIENT_ID="703gzdr4b7lxupwtgsmqd9zp8ribnu"
-CLIENT_SECRET="$(echo "M21keWl3MzA2ZjU2dDZ5eHE1bzk1eXA3dWcxOGlvCg==" | base64 -d -)"
+CLIENT_ID=$(cat $CLIENT_ID_FILE | tr -d '\n')
+CLIENT_SECRET=$(cat $CLIENT_SECRET_FILE | tr -d '\n')
 
 echoexit() {
     # Print to stderr and exit
@@ -45,9 +48,9 @@ view() {
     local resolution
     channel="$1"
     url="https://twitch.tv/$channel"
-    resolutions="$(youtube-dl -F "$url" | grep -v "\[" | tail -n +2 | tac)"
+    resolutions="$(yt-dlp -F "$url" | grep -v "\[" | tail -n +2 | tac)"
     resolution="$(printf "%s" "$resolutions" | "${MENU_CMD[@]}" | cut -d " " -f 1)"
-    [ -n "$resolution" ] && youtube-dl "$url" -f "$resolution" -o - | mpv -
+    [ -n "$resolution" ] && yt-dlp "$url" -f "$resolution" -o - | mpv -
 }
 
 usage() {
@@ -99,7 +102,7 @@ get_access_token() {
         echo "Go to: https://id.twitch.tv/oauth2/authorize?client_id=$CLIENT_ID&redirect_uri=http://localhost:8181/&response_type=code&scope=user:read:follows" >&2
         echo "Waiting for authorization..." >&2
         # start ncat to listen for code and close
-        code="$(echo "Authorization successful!" | nc -l -p 8181 -c | grep -oP '(?<=code=).*?(?=&)')" || true
+        code="$(echo "Authorization successful!" | nc -l 8181 | grep -oP '(?<=code=).*?(?=&)')" || true
         response=$(curl --silent -X POST 'https://id.twitch.tv/oauth2/token' \
             -H 'Content-Type: application/x-www-form-urlencoded' \
             -d "client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&code=$code&grant_type=authorization_code&redirect_uri=http://localhost:8181/")
@@ -208,9 +211,9 @@ shift $((OPTIND - 1))
 type curl >/dev/null || echoexit "'curl' not found."
 type jq >/dev/null || echoexit "'jq' not found."
 type rofi >/dev/null || echoexit "'rofi' not found."
-type youtube-dl >/dev/null || echoexit "'youtube-dl' not found."
+type yt-dlp >/dev/null || echoexit "'yt-dlp' not found."
 type mpv >/dev/null || echoexit "'mpv' not found."
-type ncat >/dev/null || echoexit "'ncat' not found."
+type nc >/dev/null || echoexit "'nc' not found."
 
 subcommand="$1"
 # Remove 'rofi-ttv' from the argument list
